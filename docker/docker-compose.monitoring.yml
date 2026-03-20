@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # Monitoring
+  watchtower:
+    image: containrrr/watchtower
+    container_name: dropship-watchtower
+    environment:
+      - WATCHTOWER_SCHEDULE=0 0 4 * * *
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_NOTIFICATIONS=shoutrrr
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+  # Log management
+  logspout:
+    image: gliderlabs/logspout
+    container_name: dropship-logspout
+    environment:
+      - ROUTE_ALL=true
+      - ROUTE_URL=dropshiplogs
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+  # Autoheal
+  autoheal:
+    image: willfarrell/autoheal
+    container_name: dropship-autoheal
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=autoheal
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+  # Backup (optional)
+  backup:
+    image: postgres:15-alpine
+    container_name: dropship-backup
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=dropship
+      - POSTGRES_USER=dropship
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - BACKUP_NUM_KEEP=7
+      - BACKUP_FREQUENCY=1d
+    volumes:
+      - ./backups:/backups
+    entrypoint: |
+      sh -c 'echo "Backup container started. Configure backup schedule as needed."'
+    restart: unless-stopped
